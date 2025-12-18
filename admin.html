@@ -7,6 +7,10 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        .fade-in { animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
 </head>
 <body class="bg-gray-100 text-gray-800 min-h-screen font-sans">
 
@@ -20,26 +24,68 @@
     </script>
     <!-- ========================================== -->
 
-    <div class="max-w-7xl mx-auto p-4 md:p-8">
+    <!-- VISTA LOGIN SUPERVISOR -->
+    <div id="admin-login-view" class="min-h-screen flex items-center justify-center p-4 fade-in">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md border border-gray-100 text-center">
+            <!-- Logo -->
+            <img src="./logo.png" onerror="this.src='https://via.placeholder.com/150?text=Logo+App'; this.onerror=null;" alt="Logo Empresa" class="w-32 h-32 mx-auto mb-6 object-contain">
+            
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">Acceso Supervisor</h2>
+            <p class="text-gray-400 text-sm mb-6">Introduce tus credenciales de administración</p>
+
+            <div class="space-y-4 text-left">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Usuario</label>
+                    <input type="text" id="admin-user" placeholder="Usuario" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Contraseña</label>
+                    <input type="password" id="admin-pass" placeholder="••••••" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition">
+                </div>
+                <button onclick="adminLogin()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition shadow-lg flex justify-center items-center gap-2">
+                    Entrar <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </div>
+            <p class="text-xs text-gray-300 mt-6">Versión 2.0</p>
+        </div>
+    </div>
+
+    <!-- VISTA DASHBOARD (Oculta al inicio) -->
+    <div id="dashboard-view" class="max-w-7xl mx-auto p-4 md:p-8 hidden fade-in">
         
         <!-- Header -->
         <header class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-800"><i class="fa-solid fa-user-tie mr-2 text-indigo-600"></i>Panel Supervisor</h1>
-                <p class="text-sm text-gray-500">Gestión integral de personal y tiempos</p>
+            <div class="flex items-center gap-4 w-full md:w-auto">
+                <img src="./logo.png" onerror="this.style.display='none'" class="w-14 h-14 object-contain rounded-lg border border-gray-100 p-1">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800"><i class="fa-solid fa-user-tie mr-2 text-indigo-600"></i>Panel Supervisor</h1>
+                    <p class="text-sm text-gray-500">Gestión integral de personal y tiempos</p>
+                </div>
             </div>
             
-            <div class="flex gap-2 items-center">
+            <div class="flex flex-wrap gap-2 items-center justify-center md:justify-end w-full md:w-auto">
                 <!-- Botón Hoja de Cálculo -->
                 <button onclick="window.open(GOOGLE_SHEET_URL, '_blank')" class="bg-green-600 hover:bg-green-700 text-white w-10 h-10 rounded-lg transition shadow-md flex items-center justify-center mr-2" title="Abrir Hoja de Google Sheets">
                     <i class="fa-solid fa-file-excel"></i>
                 </button>
+
+                <div class="h-8 w-px bg-gray-300 mx-1 hidden md:block"></div>
 
                 <button onclick="switchTab('asistencia')" id="tab-asistencia" class="px-4 py-2 rounded-lg font-medium transition bg-indigo-600 text-white shadow-md">
                     <i class="fa-solid fa-list-check mr-2"></i> Asistencias
                 </button>
                 <button onclick="switchTab('empleados')" id="tab-empleados" class="px-4 py-2 rounded-lg font-medium transition bg-gray-100 text-gray-600 hover:bg-gray-200">
                     <i class="fa-solid fa-users-gear mr-2"></i> Empleados
+                </button>
+                
+                <div class="h-8 w-px bg-gray-300 mx-1 hidden md:block"></div>
+
+                <!-- Menú Usuario -->
+                 <button onclick="changePassword()" class="text-gray-500 hover:text-indigo-600 p-2 rounded hover:bg-indigo-50 transition" title="Cambiar Contraseña">
+                    <i class="fa-solid fa-key"></i>
+                </button>
+                <button onclick="logout()" class="text-gray-500 hover:text-red-600 p-2 rounded hover:bg-red-50 transition" title="Cerrar Sesión">
+                    <i class="fa-solid fa-right-from-bracket"></i>
                 </button>
             </div>
         </header>
@@ -114,6 +160,58 @@
     </div>
 
     <script>
+        // --- AUTENTICACIÓN SUPERVISOR ---
+        const DEFAULT_USER = "Supervisor";
+        const DEFAULT_PASS = "123456";
+
+        function adminLogin() {
+            const user = document.getElementById('admin-user').value.trim();
+            const pass = document.getElementById('admin-pass').value.trim();
+            
+            // Verificamos si hay una contraseña guardada en el navegador, si no, usamos la default
+            const savedPass = localStorage.getItem('admin_password') || DEFAULT_PASS;
+
+            if(user === DEFAULT_USER && pass === savedPass) {
+                // Login correcto
+                document.getElementById('admin-login-view').classList.add('hidden');
+                document.getElementById('dashboard-view').classList.remove('hidden');
+                
+                // Cargar datos tras el login
+                if(SHEETDB_URL !== 'PEGAR_TU_URL_AQUI') {
+                    loadAsistencia();
+                } else {
+                    Swal.fire('Atención', 'Recuerda configurar la URL de SheetDB en el código', 'warning');
+                }
+            } else {
+                Swal.fire('Error', 'Usuario o contraseña incorrectos', 'error');
+            }
+        }
+
+        async function changePassword() {
+            const { value: newPass } = await Swal.fire({
+                title: 'Cambiar Contraseña de Supervisor',
+                input: 'password',
+                inputLabel: 'Introduce la nueva contraseña',
+                inputPlaceholder: 'Nueva contraseña',
+                inputAttributes: {
+                    autocapitalize: 'off',
+                    autocorrect: 'off'
+                },
+                showCancelButton: true,
+                confirmButtonText: 'Guardar',
+                cancelButtonText: 'Cancelar'
+            });
+
+            if (newPass) {
+                localStorage.setItem('admin_password', newPass);
+                Swal.fire('Guardado', 'La contraseña de Supervisor se ha actualizado en este navegador', 'success');
+            }
+        }
+
+        function logout() {
+            location.reload();
+        }
+
         // --- NAVEGACIÓN TABS ---
         function switchTab(tab) {
             document.getElementById('view-asistencia').classList.add('hidden');
@@ -132,12 +230,12 @@
         let allRecords = [];
 
         // --- INICIO ---
+        // Eliminamos el listener automático para que no cargue datos antes del login
         document.addEventListener('DOMContentLoaded', () => {
-            if(SHEETDB_URL === 'PEGAR_TU_URL_AQUI') {
-                Swal.fire('Error', 'Configura la URL en el código', 'error');
-                return;
-            }
-            loadAsistencia();
+             // Listener para tecla Enter en login
+             document.getElementById('admin-pass').addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') adminLogin();
+            });
         });
 
         // ==========================================
@@ -145,7 +243,7 @@
         // ==========================================
         async function loadAsistencia() {
             const tbody = document.getElementById('table-body');
-            tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center"><i class="fa-solid fa-spinner fa-spin"></i></td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center"><i class="fa-solid fa-spinner fa-spin text-2xl text-indigo-500"></i></td></tr>';
             
             try {
                 const res = await fetch(`${SHEETDB_URL}?sheet=asistencia`);
@@ -154,7 +252,7 @@
                 renderTable(allRecords);
             } catch (e) {
                 console.error(e);
-                tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-red-500">Error al cargar datos</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-red-500">Error al cargar datos. Verifica la conexión o la URL.</td></tr>';
             }
         }
 
@@ -196,7 +294,8 @@
         function filterTable() {
             const term = document.getElementById('search-input').value.toLowerCase();
             const filtered = allRecords.filter(r => 
-                r.empleado.toLowerCase().includes(term) || r.fecha.includes(term)
+                (r.empleado && r.empleado.toLowerCase().includes(term)) || 
+                (r.fecha && r.fecha.includes(term))
             );
             renderTable(filtered);
         }
