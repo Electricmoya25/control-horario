@@ -11,10 +11,12 @@
 <body class="bg-gray-100 text-gray-800 min-h-screen font-sans">
 
     <!-- ========================================== -->
-    <!-- CONFIGURACIÓN: PEGA TU URL DE SHEETDB AQUÍ -->
+    <!-- CONFIGURACIÓN: PEGA TUS URLS AQUÍ        -->
     <!-- ========================================== -->
     <script>
         const SHEETDB_URL = 'https://sheetdb.io/api/v1/hwvpn8lhbw0gg'; 
+        // Pega aquí abajo el enlace de tu navegador cuando estás en la hoja de Google
+        const GOOGLE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/17eP8nz-Y88JnXLhP57Q0VN_c4BiGfJ7dFaU9lrS13G0/edit#gid=0'; 
     </script>
     <!-- ========================================== -->
 
@@ -27,7 +29,12 @@
                 <p class="text-sm text-gray-500">Gestión integral de personal y tiempos</p>
             </div>
             
-            <div class="flex gap-2">
+            <div class="flex gap-2 items-center">
+                <!-- Botón Hoja de Cálculo -->
+                <button onclick="window.open(GOOGLE_SHEET_URL, '_blank')" class="bg-green-600 hover:bg-green-700 text-white w-10 h-10 rounded-lg transition shadow-md flex items-center justify-center mr-2" title="Abrir Hoja de Google Sheets">
+                    <i class="fa-solid fa-file-excel"></i>
+                </button>
+
                 <button onclick="switchTab('asistencia')" id="tab-asistencia" class="px-4 py-2 rounded-lg font-medium transition bg-indigo-600 text-white shadow-md">
                     <i class="fa-solid fa-list-check mr-2"></i> Asistencias
                 </button>
@@ -251,12 +258,15 @@
                 
                 list.innerHTML = '';
                 data.forEach(user => {
+                    // Intento robusto de leer la contraseña (minúsculas o mayúsculas)
+                    const userPass = user.password || user.Password || user.pass || '****';
+                    
                     const li = document.createElement('li');
                     li.className = "p-4 flex justify-between items-center hover:bg-gray-50";
                     li.innerHTML = `
                         <div>
                             <span class="font-bold text-gray-800">${user.nombre}</span>
-                            <span class="text-xs text-gray-400 ml-2">Pass: ${user.password}</span>
+                            <span class="text-xs text-gray-400 ml-2">Pass: ${userPass}</span>
                         </div>
                         <button onclick="deleteEmployee('${user.nombre}')" class="text-red-400 hover:text-red-600 text-sm">
                             <i class="fa-solid fa-trash"></i> Eliminar
@@ -270,13 +280,21 @@
         }
 
         async function addEmployee() {
-            const name = document.getElementById('new-name').value;
-            const pass = document.getElementById('new-pass').value;
+            const nameInput = document.getElementById('new-name');
+            const passInput = document.getElementById('new-pass');
+            
+            // Usamos .trim() para quitar espacios accidentales al principio o final
+            const name = nameInput.value.trim();
+            const pass = passInput.value.trim();
             
             if(!name || !pass) return Swal.fire('Error', 'Rellena todos los campos', 'warning');
 
-            // Generamos un ID simple para el usuario (opcional, pero buena práctica)
-            const newUser = { id: crypto.randomUUID(), nombre: name, password: pass };
+            // Generador de ID robusto (funciona en contextos no seguros/HTTP)
+            const newId = (typeof crypto !== 'undefined' && crypto.randomUUID) 
+                        ? crypto.randomUUID() 
+                        : 'emp_' + Date.now() + Math.floor(Math.random() * 1000);
+
+            const newUser = { id: newId, nombre: name, password: pass };
 
             Swal.fire({title: 'Creando...', didOpen: ()=>Swal.showLoading()});
             
@@ -287,12 +305,13 @@
                     body: JSON.stringify({ data: [newUser] })
                 });
                 
-                document.getElementById('new-name').value = '';
-                document.getElementById('new-pass').value = '';
+                nameInput.value = '';
+                passInput.value = '';
                 Swal.fire('Éxito', 'Empleado añadido', 'success');
                 loadEmployees();
             } catch(e) {
-                Swal.fire('Error', 'No se pudo guardar', 'error');
+                console.error(e);
+                Swal.fire('Error', 'No se pudo guardar. Revisa la consola.', 'error');
             }
         }
 
