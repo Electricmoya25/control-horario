@@ -6,131 +6,180 @@
     <title>Panel Supervisor</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body class="bg-gray-100 text-gray-800 min-h-screen font-sans">
 
-    <div class="max-w-6xl mx-auto p-6">
+    <!-- ========================================== -->
+    <!-- CONFIGURACIÓN: PEGA TU URL DE SHEETDB AQUÍ -->
+    <!-- ========================================== -->
+    <script>
+        const SHEETDB_URL = 'https://sheetdb.io/api/v1/hwvpn8lhbw0gg'; 
+    </script>
+    <!-- ========================================== -->
+
+    <div class="max-w-7xl mx-auto p-4 md:p-8">
         
         <!-- Header -->
-        <header class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+        <header class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
             <div>
-                <h1 class="text-2xl font-bold text-gray-800"><i class="fa-solid fa-user-tie mr-2 text-indigo-600"></i>Panel de Supervisor</h1>
-                <p class="text-sm text-gray-500">Historial completo de fichajes</p>
+                <h1 class="text-2xl font-bold text-gray-800"><i class="fa-solid fa-user-tie mr-2 text-indigo-600"></i>Panel Supervisor</h1>
+                <p class="text-sm text-gray-500">Gestión integral de personal y tiempos</p>
             </div>
             
-            <div class="flex gap-3 w-full md:w-auto">
-                <div class="relative w-full md:w-64">
-                    <i class="fa-solid fa-search absolute left-3 top-3 text-gray-400"></i>
-                    <input type="text" id="search-input" onkeyup="filterTable()" placeholder="Buscar empleado..." class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                </div>
-                <button onclick="loadAllData()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition shadow">
-                    <i class="fa-solid fa-sync"></i>
+            <div class="flex gap-2">
+                <button onclick="switchTab('asistencia')" id="tab-asistencia" class="px-4 py-2 rounded-lg font-medium transition bg-indigo-600 text-white shadow-md">
+                    <i class="fa-solid fa-list-check mr-2"></i> Asistencias
+                </button>
+                <button onclick="switchTab('empleados')" id="tab-empleados" class="px-4 py-2 rounded-lg font-medium transition bg-gray-100 text-gray-600 hover:bg-gray-200">
+                    <i class="fa-solid fa-users-gear mr-2"></i> Empleados
                 </button>
             </div>
         </header>
 
-        <!-- Stats Rápidas -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-indigo-500">
-                <p class="text-xs text-gray-500 uppercase font-bold">Total Registros</p>
-                <p class="text-3xl font-bold text-gray-800" id="total-count">0</p>
+        <!-- SECCIÓN ASISTENCIA -->
+        <section id="view-asistencia" class="space-y-6">
+            
+            <!-- Buscador -->
+            <div class="flex gap-3">
+                <div class="relative flex-grow max-w-md">
+                    <i class="fa-solid fa-search absolute left-3 top-3 text-gray-400"></i>
+                    <input type="text" id="search-input" onkeyup="filterTable()" placeholder="Buscar por empleado o fecha..." class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <button onclick="loadAsistencia()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg transition">
+                    <i class="fa-solid fa-sync"></i>
+                </button>
             </div>
-            <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-emerald-500">
-                <p class="text-xs text-gray-500 uppercase font-bold">Fichajes Hoy</p>
-                <p class="text-3xl font-bold text-gray-800" id="today-count">0</p>
-            </div>
-            <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-blue-500 flex items-center justify-between cursor-pointer hover:bg-gray-50" onclick="window.open(SHEETDB_URL.replace('/api/v1/', '/view/'), '_blank')">
-                <div>
-                    <p class="text-xs text-gray-500 uppercase font-bold">Base de Datos</p>
-                    <p class="text-sm font-medium text-blue-600 mt-1">Ver Hoja de Google <i class="fa-solid fa-external-link-alt ml-1"></i></p>
+
+            <!-- Tabla -->
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-gray-50 border-b border-gray-200 text-gray-500 text-xs uppercase font-bold">
+                            <tr>
+                                <th class="p-4">Fecha</th>
+                                <th class="p-4">Empleado</th>
+                                <th class="p-4">Entrada</th>
+                                <th class="p-4">Salida</th>
+                                <th class="p-4">Total</th>
+                                <th class="p-4">Estado</th>
+                                <th class="p-4 text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body" class="divide-y divide-gray-100 text-sm">
+                            <tr><td colspan="7" class="p-8 text-center text-gray-400">Cargando datos...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <!-- Tabla -->
-        <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead class="bg-gray-50 border-b border-gray-200">
-                        <tr>
-                            <th class="p-4 text-xs font-bold text-gray-500 uppercase">Fecha / Hora</th>
-                            <th class="p-4 text-xs font-bold text-gray-500 uppercase">Empleado</th>
-                            <th class="p-4 text-xs font-bold text-gray-500 uppercase">Tipo</th>
-                            <th class="p-4 text-xs font-bold text-gray-500 uppercase">Nota</th>
-                        </tr>
-                    </thead>
-                    <tbody id="table-body" class="divide-y divide-gray-100 text-sm">
-                        <tr><td colspan="4" class="p-8 text-center text-gray-400">Cargando datos...</td></tr>
-                    </tbody>
-                </table>
+        <!-- SECCIÓN EMPLEADOS (Oculta) -->
+        <section id="view-empleados" class="hidden grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            <!-- Formulario Crear Empleado -->
+            <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-200 h-fit">
+                <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><i class="fa-solid fa-user-plus text-green-600"></i> Nuevo Empleado</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nombre Completo</label>
+                        <input type="text" id="new-name" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Contraseña</label>
+                        <input type="text" id="new-pass" placeholder="Ej. 1234" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <button onclick="addEmployee()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded transition">
+                        Guardar Empleado
+                    </button>
+                </div>
             </div>
-        </div>
-        
-        <p class="text-center text-gray-400 text-xs mt-6">Mostrando últimos registros primero</p>
+
+            <!-- Lista Empleados -->
+            <div class="md:col-span-2 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+                <div class="p-4 bg-gray-50 border-b border-gray-200 font-bold text-gray-700">Directorio de Personal</div>
+                <ul id="employee-list" class="divide-y divide-gray-100">
+                    <li class="p-4 text-center text-gray-400">Cargando...</li>
+                </ul>
+            </div>
+        </section>
 
     </div>
 
     <script>
-        // ==========================================
-        // CONFIGURACIÓN: PEGA LA MISMA URL AQUÍ
-        // ==========================================
-        const SHEETDB_URL = 'PEGAR_TU_URL_AQUI'; 
-        // ==========================================
+        // --- NAVEGACIÓN TABS ---
+        function switchTab(tab) {
+            document.getElementById('view-asistencia').classList.add('hidden');
+            document.getElementById('view-empleados').classList.add('hidden');
+            document.getElementById('tab-asistencia').className = "px-4 py-2 rounded-lg font-medium transition bg-gray-100 text-gray-600 hover:bg-gray-200";
+            document.getElementById('tab-empleados').className = "px-4 py-2 rounded-lg font-medium transition bg-gray-100 text-gray-600 hover:bg-gray-200";
 
-        let allRecords = []; // Para guardar datos y filtrar localmente
+            document.getElementById(`view-${tab}`).classList.remove('hidden');
+            document.getElementById(`tab-${tab}`).className = "px-4 py-2 rounded-lg font-medium transition bg-indigo-600 text-white shadow-md";
 
-        document.addEventListener('DOMContentLoaded', loadAllData);
+            if(tab === 'empleados') loadEmployees();
+            else loadAsistencia();
+        }
 
-        async function loadAllData() {
-            const tbody = document.getElementById('table-body');
-            
+        // --- GLOBAL VARS ---
+        let allRecords = [];
+
+        // --- INICIO ---
+        document.addEventListener('DOMContentLoaded', () => {
             if(SHEETDB_URL === 'PEGAR_TU_URL_AQUI') {
-                tbody.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-red-500 font-bold">⚠️ Error: Debes editar el archivo admin.html y pegar la URL de SheetDB en la línea 79.</td></tr>';
+                Swal.fire('Error', 'Configura la URL en el código', 'error');
                 return;
             }
+            loadAsistencia();
+        });
 
-            tbody.innerHTML = '<tr><td colspan="4" class="p-8 text-center"><i class="fa-solid fa-circle-notch fa-spin text-indigo-500 text-2xl"></i></td></tr>';
-
+        // ==========================================
+        // LÓGICA DE ASISTENCIA
+        // ==========================================
+        async function loadAsistencia() {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center"><i class="fa-solid fa-spinner fa-spin"></i></td></tr>';
+            
             try {
-                const res = await fetch(SHEETDB_URL);
+                const res = await fetch(`${SHEETDB_URL}?sheet=asistencia`);
                 const data = await res.json();
-                
-                // Invertir para ver lo más nuevo primero
-                allRecords = data.reverse();
-                
+                allRecords = data.reverse(); // Más recientes primero
                 renderTable(allRecords);
-                updateStats(allRecords);
-
-            } catch (error) {
-                console.error(error);
-                tbody.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-red-500">Error al cargar la base de datos. Ver consola.</td></tr>';
+            } catch (e) {
+                console.error(e);
+                tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-red-500">Error al cargar datos</td></tr>';
             }
         }
 
         function renderTable(data) {
             const tbody = document.getElementById('table-body');
-            
             if(data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-gray-400">No se encontraron registros.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-gray-400">No hay registros</td></tr>';
                 return;
             }
 
             let html = '';
             data.forEach(row => {
-                const isEntrada = row.tipo === 'ENTRADA';
-                const badge = isEntrada 
-                    ? '<span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full text-xs font-bold">ENTRADA</span>' 
-                    : '<span class="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-bold">SALIDA</span>';
+                const isIncomplete = row.estado === 'INCOMPLETO';
+                // Si es incompleto, fila roja suave
+                const rowClass = isIncomplete ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-gray-50';
+                const statusBadge = isIncomplete 
+                    ? '<span class="px-2 py-1 rounded text-xs font-bold bg-red-200 text-red-800">INCOMPLETO</span>'
+                    : '<span class="px-2 py-1 rounded text-xs font-bold bg-green-100 text-green-800">OK</span>';
 
                 html += `
-                    <tr class="hover:bg-gray-50 transition">
-                        <td class="p-4">
-                            <div class="font-bold text-gray-700">${row.fecha}</div>
-                            <div class="text-xs text-gray-500">${row.hora}</div>
+                    <tr class="${rowClass} transition border-b border-gray-100">
+                        <td class="p-4 font-mono text-gray-600">${row.fecha}</td>
+                        <td class="p-4 font-bold text-gray-800">${row.empleado}</td>
+                        <td class="p-4 text-green-600 font-medium">${row.hora_entrada}</td>
+                        <td class="p-4 text-red-600 font-medium">${row.hora_salida || '--:--'}</td>
+                        <td class="p-4 font-bold">${row.horas_totales || '-'}</td>
+                        <td class="p-4">${statusBadge}</td>
+                        <td class="p-4 text-center">
+                            <button onclick="editRecord('${row.id}', '${row.empleado}', '${row.hora_entrada}')" class="text-indigo-600 hover:text-indigo-900 p-2" title="Corregir Salida">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
                         </td>
-                        <td class="p-4 font-medium text-gray-800 text-base">${row.empleado}</td>
-                        <td class="p-4">${badge}</td>
-                        <td class="p-4 text-gray-500 italic">${row.nota || '-'}</td>
                     </tr>
                 `;
             });
@@ -139,20 +188,137 @@
 
         function filterTable() {
             const term = document.getElementById('search-input').value.toLowerCase();
-            const filtered = allRecords.filter(row => 
-                (row.empleado && row.empleado.toLowerCase().includes(term)) ||
-                (row.fecha && row.fecha.includes(term))
+            const filtered = allRecords.filter(r => 
+                r.empleado.toLowerCase().includes(term) || r.fecha.includes(term)
             );
             renderTable(filtered);
         }
 
-        function updateStats(data) {
-            document.getElementById('total-count').innerText = data.length;
-            
-            const todayStr = new Date().toLocaleDateString('es-ES');
-            const todayCount = data.filter(r => r.fecha === todayStr).length;
-            document.getElementById('today-count').innerText = todayCount;
+        async function editRecord(id, name, entrada) {
+            // Modal para corregir la hora de salida
+            const { value: formValues } = await Swal.fire({
+                title: `Corregir Salida: ${name}`,
+                html: `
+                    <p class="text-sm text-gray-500 mb-2">Entrada: ${entrada}</p>
+                    <label class="block text-left text-xs font-bold uppercase mb-1">Hora de Salida (HH:MM:SS)</label>
+                    <input id="swal-salida" class="swal2-input" placeholder="Ej. 18:00:00">
+                    <label class="block text-left text-xs font-bold uppercase mt-2 mb-1">Total Horas (Opcional)</label>
+                    <input id="swal-total" class="swal2-input" placeholder="Ej. 8h 0m">
+                `,
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonText: 'Guardar Corrección',
+                preConfirm: () => {
+                    return [
+                        document.getElementById('swal-salida').value,
+                        document.getElementById('swal-total').value
+                    ]
+                }
+            });
+
+            if (formValues) {
+                const [newSalida, newTotal] = formValues;
+                if(!newSalida) return;
+
+                Swal.fire({title: 'Actualizando...', didOpen: ()=>Swal.showLoading()});
+                
+                try {
+                    await fetch(`${SHEETDB_URL}/id/${id}?sheet=asistencia`, {
+                        method: 'PATCH',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ data: {
+                            hora_salida: newSalida,
+                            horas_totales: newTotal || 'Editado Manual',
+                            estado: 'COMPLETO'
+                        }})
+                    });
+                    Swal.fire('Actualizado', 'Registro corregido correctamente', 'success');
+                    loadAsistencia();
+                } catch(e) {
+                    Swal.fire('Error', 'No se pudo actualizar', 'error');
+                }
+            }
         }
+
+        // ==========================================
+        // LÓGICA DE EMPLEADOS
+        // ==========================================
+        async function loadEmployees() {
+            const list = document.getElementById('employee-list');
+            try {
+                const res = await fetch(`${SHEETDB_URL}?sheet=empleados`);
+                const data = await res.json();
+                
+                list.innerHTML = '';
+                data.forEach(user => {
+                    const li = document.createElement('li');
+                    li.className = "p-4 flex justify-between items-center hover:bg-gray-50";
+                    li.innerHTML = `
+                        <div>
+                            <span class="font-bold text-gray-800">${user.nombre}</span>
+                            <span class="text-xs text-gray-400 ml-2">Pass: ${user.password}</span>
+                        </div>
+                        <button onclick="deleteEmployee('${user.nombre}')" class="text-red-400 hover:text-red-600 text-sm">
+                            <i class="fa-solid fa-trash"></i> Eliminar
+                        </button>
+                    `;
+                    list.appendChild(li);
+                });
+            } catch(e) {
+                list.innerHTML = '<li class="p-4 text-red-500">Error cargando empleados</li>';
+            }
+        }
+
+        async function addEmployee() {
+            const name = document.getElementById('new-name').value;
+            const pass = document.getElementById('new-pass').value;
+            
+            if(!name || !pass) return Swal.fire('Error', 'Rellena todos los campos', 'warning');
+
+            // Generamos un ID simple para el usuario (opcional, pero buena práctica)
+            const newUser = { id: crypto.randomUUID(), nombre: name, password: pass };
+
+            Swal.fire({title: 'Creando...', didOpen: ()=>Swal.showLoading()});
+            
+            try {
+                await fetch(`${SHEETDB_URL}?sheet=empleados`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ data: [newUser] })
+                });
+                
+                document.getElementById('new-name').value = '';
+                document.getElementById('new-pass').value = '';
+                Swal.fire('Éxito', 'Empleado añadido', 'success');
+                loadEmployees();
+            } catch(e) {
+                Swal.fire('Error', 'No se pudo guardar', 'error');
+            }
+        }
+
+        async function deleteEmployee(nombre) {
+            const confirm = await Swal.fire({
+                title: '¿Eliminar empleado?',
+                text: "No se podrá deshacer",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, eliminar'
+            });
+
+            if(confirm.isConfirmed) {
+                // Borrar por nombre (SheetDB delete syntax: /nombre/{value})
+                try {
+                    await fetch(`${SHEETDB_URL}/nombre/${nombre}?sheet=empleados`, {
+                        method: 'DELETE'
+                    });
+                    Swal.fire('Borrado', 'Empleado eliminado', 'success');
+                    loadEmployees();
+                } catch(e) {
+                    Swal.fire('Error', 'Fallo al borrar', 'error');
+                }
+            }
+        }
+
     </script>
 </body>
 </html>
