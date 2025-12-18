@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Asistencia</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .digital-clock { font-variant-numeric: tabular-nums; }
+        .btn-press:active { transform: scale(0.95); }
+        
+        /* Animaciones */
+        @keyframes pulse-green {
+            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+        .pulse-animation { animation: pulse-green 2s infinite; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-200 min-h-screen flex flex-col">
+
+    <!-- Configuración Inicial (Modal) -->
+    <div id="config-modal" class="fixed inset-0 bg-black bg-opacity-95 z-50 flex items-center justify-center p-4 backdrop-blur-md hidden">
+        <div class="bg-slate-800 rounded-2xl shadow-2xl p-8 max-w-md w-full border border-slate-700">
+            <div class="text-center mb-6">
+                <i class="fa-solid fa-server text-4xl text-blue-500 mb-3"></i>
+                <h2 class="text-2xl font-bold text-white">Configuración del Servidor</h2>
+                <p class="text-slate-400 mt-2 text-sm">Pega la URL de tu API de SheetDB vinculada a tu Google Sheet.</p>
+            </div>
+            <div class="space-y-4">
+                <input type="text" id="api-url-input" placeholder="https://sheetdb.io/api/v1/..." class="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-white outline-none">
+                <div class="bg-slate-900 p-3 rounded text-xs text-slate-400 font-mono">
+                    Columnas requeridas: fecha, hora, empleado, tipo, nota
+                </div>
+                <button onclick="saveConfig()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition btn-press">
+                    Guardar Conexión
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Barra Superior -->
+    <header class="bg-slate-800 border-b border-slate-700 p-4 shadow-md">
+        <div class="max-w-4xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="bg-blue-600 w-10 h-10 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/30">
+                    <i class="fa-solid fa-clock text-white text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-white leading-tight">Control Horario</h1>
+                    <p class="text-xs text-slate-400" id="date-display">Cargando fecha...</p>
+                </div>
+            </div>
+            <button onclick="resetConfig()" class="text-slate-500 hover:text-white transition" title="Configuración">
+                <i class="fa-solid fa-gear"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Contenido Principal -->
+    <main class="flex-grow p-4 max-w-4xl mx-auto w-full space-y-6">
+
+        <!-- Panel de Reloj y Acciones -->
+        <div class="bg-slate-800 rounded-2xl p-6 shadow-xl border border-slate-700 relative overflow-hidden">
+            <!-- Reloj Digital Grande -->
+            <div class="text-center py-6">
+                <div id="clock" class="text-6xl sm:text-7xl font-bold text-white digital-clock tracking-tight">00:00:00</div>
+                <p class="text-blue-400 font-medium mt-2 uppercase tracking-widest text-sm">Sistema Activo</p>
+            </div>
+
+            <!-- Formulario de Identificación -->
+            <div class="max-w-md mx-auto space-y-4 mb-6 relative z-10">
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-2 ml-1">Identificación del Empleado</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-user absolute left-4 top-3.5 text-slate-500"></i>
+                        <input type="text" id="employee-name" placeholder="Tu Nombre o ID..." class="w-full pl-10 pr-4 py-3 bg-slate-900 border border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 text-white outline-none transition placeholder-slate-600">
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-2 ml-1">Nota (Opcional)</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-comment absolute left-4 top-3.5 text-slate-500"></i>
+                        <input type="text" id="log-note" placeholder="Ej. Retraso por tráfico, Salida al médico..." class="w-full pl-10 pr-4 py-3 bg-slate-900 border border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 text-white outline-none transition placeholder-slate-600">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botones de Acción -->
+            <div class="grid grid-cols-2 gap-4 max-w-md mx-auto relative z-10">
+                <button onclick="submitLog('ENTRADA')" id="btn-in" class="group relative overflow-hidden bg-emerald-600 hover:bg-emerald-500 text-white p-6 rounded-xl transition shadow-lg shadow-emerald-900/50 btn-press flex flex-col items-center gap-2 border-b-4 border-emerald-800 hover:border-emerald-700">
+                    <div class="bg-emerald-800/50 p-3 rounded-full group-hover:scale-110 transition duration-300">
+                        <i class="fa-solid fa-right-to-bracket text-2xl"></i>
+                    </div>
+                    <span class="font-bold text-lg">ENTRADA</span>
+                    <span class="text-xs text-emerald-200 opacity-70">Iniciar Jornada</span>
+                </button>
+
+                <button onclick="submitLog('SALIDA')" id="btn-out" class="group relative overflow-hidden bg-rose-600 hover:bg-rose-500 text-white p-6 rounded-xl transition shadow-lg shadow-rose-900/50 btn-press flex flex-col items-center gap-2 border-b-4 border-rose-800 hover:border-rose-700">
+                    <div class="bg-rose-800/50 p-3 rounded-full group-hover:scale-110 transition duration-300">
+                        <i class="fa-solid fa-right-from-bracket text-2xl"></i>
+                    </div>
+                    <span class="font-bold text-lg">SALIDA</span>
+                    <span class="text-xs text-rose-200 opacity-70">Terminar Jornada</span>
+                </button>
+            </div>
+
+            <!-- Decoración de fondo -->
+            <div class="absolute top-0 right-0 w-64 h-64 bg-blue-500 opacity-5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
+            <div class="absolute bottom-0 left-0 w-64 h-64 bg-purple-500 opacity-5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2 pointer-events-none"></div>
+        </div>
+
+        <!-- Historial Reciente -->
+        <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-lg">
+            <div class="p-4 bg-slate-800 border-b border-slate-700 flex justify-between items-center">
+                <h3 class="font-bold text-slate-200 flex items-center gap-2">
+                    <i class="fa-solid fa-list-check text-slate-400"></i> Últimos Registros
+                </h3>
+                <button onclick="fetchHistory()" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-slate-300 transition">
+                    <i class="fa-solid fa-sync mr-1"></i> Actualizar
+                </button>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm text-slate-300">
+                    <thead class="bg-slate-900/50 text-slate-400 uppercase text-xs font-semibold">
+                        <tr>
+                            <th class="p-4">Hora</th>
+                            <th class="p-4">Empleado</th>
+                            <th class="p-4">Evento</th>
+                            <th class="p-4">Nota</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-body" class="divide-y divide-slate-700">
+                        <!-- JS Llenará esto -->
+                        <tr>
+                            <td colspan="4" class="p-8 text-center text-slate-500">
+                                <i class="fa-solid fa-spinner fa-spin mb-2 text-xl"></i><br>Cargando datos...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <footer class="text-center p-6 text-slate-500 text-xs">
+        <p>&copy; 2024 Sistema de Control de Personal</p>
+    </footer>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed top-5 right-5 z-50 transform translate-x-full transition-transform duration-300">
+        <div class="bg-white text-slate-800 px-6 py-4 rounded-lg shadow-2xl flex items-center gap-4 border-l-4 border-green-500">
+            <div class="bg-green-100 p-2 rounded-full text-green-600">
+                <i class="fa-solid fa-check text-lg"></i>
+            </div>
+            <div>
+                <h4 class="font-bold text-sm">Registro Exitoso</h4>
+                <p class="text-xs text-slate-500" id="toast-msg">Se ha guardado tu entrada.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- RELOJ EN TIEMPO REAL ---
+        function updateClock() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const dateString = now.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            
+            document.getElementById('clock').textContent = timeString;
+            document.getElementById('date-display').textContent = dateString.charAt(0).toUpperCase() + dateString.slice(1);
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // --- LÓGICA DE SHEETDB ---
+        let API_URL = localStorage.getItem('sheetdb_attendance_url');
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!API_URL) {
+                document.getElementById('config-modal').classList.remove('hidden');
+            } else {
+                fetchHistory();
+            }
+            
+            // Cargar nombre guardado previamente si existe
+            const lastUser = localStorage.getItem('last_employee_name');
+            if(lastUser) document.getElementById('employee-name').value = lastUser;
+        });
+
+        function saveConfig() {
+            const url = document.getElementById('api-url-input').value.trim();
+            if(url) {
+                API_URL = url;
+                localStorage.setItem('sheetdb_attendance_url', url);
+                document.getElementById('config-modal').classList.add('hidden');
+                fetchHistory();
+            } else {
+                alert("Por favor ingresa una URL válida");
+            }
+        }
+
+        function resetConfig() {
+            if(confirm("¿Desvincular la hoja de cálculo actual?")) {
+                localStorage.removeItem('sheetdb_attendance_url');
+                location.reload();
+            }
+        }
+
+        // --- ENVIAR FICHAJE ---
+        async function submitLog(type) {
+            const nameInput = document.getElementById('employee-name');
+            const noteInput = document.getElementById('log-note');
+            const name = nameInput.value.trim();
+            
+            if (!API_URL) return alert("Error de configuración. Reinicia la página.");
+            if (!name) {
+                nameInput.focus();
+                nameInput.classList.add('ring-2', 'ring-red-500');
+                setTimeout(() => nameInput.classList.remove('ring-2', 'ring-red-500'), 2000);
+                return; // Detener si no hay nombre
+            }
+
+            // Guardar nombre para futuro uso
+            localStorage.setItem('last_employee_name', name);
+
+            // Bloquear botones
+            const btnIn = document.getElementById('btn-in');
+            const btnOut = document.getElementById('btn-out');
+            btnIn.disabled = true; btnOut.disabled = true;
+            btnIn.classList.add('opacity-50'); btnOut.classList.add('opacity-50');
+            document.body.style.cursor = 'wait';
+
+            const now = new Date();
+            const logData = {
+                fecha: now.toLocaleDateString('es-ES'), // DD/MM/AAAA
+                hora: now.toLocaleTimeString('es-ES'),  // HH:MM:SS
+                empleado: name,
+                tipo: type,
+                nota: noteInput.value.trim()
+            };
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ data: [logData] })
+                });
+
+                if (!response.ok) throw new Error("Error en red");
+
+                showToast(`Has marcado ${type} correctamente.`);
+                noteInput.value = ''; // Limpiar nota
+                fetchHistory(); // Actualizar tabla
+
+            } catch (error) {
+                alert("Error al guardar: " + error.message);
+            } finally {
+                // Restaurar botones
+                btnIn.disabled = false; btnOut.disabled = false;
+                btnIn.classList.remove('opacity-50'); btnOut.classList.remove('opacity-50');
+                document.body.style.cursor = 'default';
+            }
+        }
+
+        // --- CARGAR HISTORIAL ---
+        async function fetchHistory() {
+            const tbody = document.getElementById('history-body');
+            
+            try {
+                const res = await fetch(`${API_URL}?limit=10`); // Intentar limitar si la API lo soporta, o traer todo
+                if(!res.ok) throw new Error("Error fetching");
+                
+                let data = await res.json();
+                
+                // Si la API devuelve todo, tomamos los últimos 10 y los invertimos
+                if (Array.isArray(data)) {
+                    data = data.slice(-10).reverse();
+                }
+
+                tbody.innerHTML = '';
+
+                if (data.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="4" class="p-8 text-center text-slate-500">No hay registros hoy</td></tr>`;
+                    return;
+                }
+
+                data.forEach(row => {
+                    // Determinar colores según tipo
+                    const isEntry = row.tipo?.toUpperCase().includes('ENTRADA');
+                    const badgeClass = isEntry 
+                        ? 'bg-emerald-900/30 text-emerald-400 border border-emerald-800' 
+                        : 'bg-rose-900/30 text-rose-400 border border-rose-800';
+                    const icon = isEntry ? 'fa-right-to-bracket' : 'fa-right-from-bracket';
+
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-700/50 transition";
+                    tr.innerHTML = `
+                        <td class="p-4 font-mono text-slate-300 text-xs sm:text-sm whitespace-nowrap">
+                            <div class="font-bold text-white">${row.hora || '--:--'}</div>
+                            <div class="text-[10px] text-slate-500">${row.fecha || ''}</div>
+                        </td>
+                        <td class="p-4 font-medium text-white">${row.empleado || 'Anónimo'}</td>
+                        <td class="p-4">
+                            <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold ${badgeClass}">
+                                <i class="fa-solid ${icon}"></i> ${row.tipo}
+                            </span>
+                        </td>
+                        <td class="p-4 text-xs text-slate-400 italic">${row.nota || ''}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+            } catch (error) {
+                console.error(error);
+                tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-red-400">Error al cargar historial. Verifica la conexión.</td></tr>`;
+            }
+        }
+
+        // --- NOTIFICACIÓN (TOAST) ---
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-msg').textContent = msg;
+            toast.classList.remove('translate-x-full');
+            setTimeout(() => {
+                toast.classList.add('translate-x-full');
+            }, 4000);
+        }
+    </script>
+</body>
+</html>
